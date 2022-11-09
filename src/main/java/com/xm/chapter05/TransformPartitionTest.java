@@ -1,5 +1,6 @@
 package com.xm.chapter05;
 
+import org.apache.flink.api.common.eventtime.*;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -13,8 +14,11 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
  */
 public class TransformPartitionTest {
     public static void main(String[] args) throws Exception {
+        // 这边有一些水位线部分 忽略即可
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
+        env.getConfig().setAutoWatermarkInterval(100); // 默认200ms 每个interval触发一次水位线生成
 
         // 从元素读取数据
         DataStreamSource<Event> stream = env.fromElements(
@@ -26,6 +30,21 @@ public class TransformPartitionTest {
                 new Event("Bob", "./home", 3500L),
                 new Event("Bob", "./prod?id=2", 3800L),
                 new Event("Bob", "./prod?id=3", 4200L)
+        );
+
+        // 水位线
+        env.addSource(new ClickSource()).assignTimestampsAndWatermarks(
+                new WatermarkStrategy<Event>() {
+                    @Override
+                    public WatermarkGenerator<Event> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+                        return null;
+                    }
+
+                    @Override
+                    public TimestampAssigner<Event> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+                        return WatermarkStrategy.super.createTimestampAssigner(context);
+                    }
+                }
         );
 
         // 1. 随机分区
