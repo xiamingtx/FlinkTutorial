@@ -10,8 +10,10 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
@@ -30,9 +32,20 @@ public class BufferingSinkExample {
         env.setParallelism(1);
 
         // 设置检查点
-        env.enableCheckpointing(10000L); // 每隔10s设置检查点
+        env.enableCheckpointing(1000L); // 每隔1s设置检查点
         // env.setStateBackend(new HashMapStateBackend()); // 默认
         // env.setStateBackend(new EmbeddedRocksDBStateBackend());
+
+        CheckpointConfig checkpointConfig = env.getCheckpointConfig();
+
+        checkpointConfig.setCheckpointTimeout(60000L); // 超时时间设置
+        checkpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE); // 精确一次
+        // checkpointConfig.setCheckpointingMode(CheckpointingMode.AT_LEAST_ONCE); // 至少一次
+        checkpointConfig.setMinPauseBetweenCheckpoints(500L);
+        checkpointConfig.setMaxConcurrentCheckpoints(1);
+        checkpointConfig.enableUnalignedCheckpoints(); // 开启非对齐 必须是精确一次
+        checkpointConfig.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION); // 开启外部持久化 在任务取消后保留检查点
+        checkpointConfig.setTolerableCheckpointFailureNumber(0); // 失败多少次是可以允许的
 
         SingleOutputStreamOperator<Event> stream = env.addSource(new ClickSource())
                 .assignTimestampsAndWatermarks(WatermarkStrategy.<Event>forBoundedOutOfOrderness(Duration.ZERO)
