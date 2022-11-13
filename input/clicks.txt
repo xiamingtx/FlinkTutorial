@@ -7,3 +7,6 @@ Mary, ./home, 6000
 Bob, ./cart, 7000
 Bob, ./home, 8000
 Bob, ./prod?id=10, 9000
+Mary, ./home, 11000
+Bob, ./cart, 13000
+Bob, ./cart, 15000
